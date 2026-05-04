@@ -18,6 +18,66 @@ Return JSON with these 4 sections, all grounded in what they specifically wrote:
 - rootStress: One sentence naming the real underlying fear or unmet need beneath the surface noise. Not the symptom — the source. Speak to them in second person ("You're not afraid of the deadline, you're afraid of...").
 - groundingStatement: One short, beautiful sentence (under 20 words) they can say to themselves right now. Specific to their situation, not a generic affirmation. It should feel like it was written for them alone.`;
 
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+const buildGeminiRequest = (dump: string) => ({
+  systemInstruction: {
+    parts: [{ text: SYSTEM_PROMPT }],
+  },
+  contents: [
+    {
+      role: "user",
+      parts: [{ text: `Here is my mind dump:\n\n${dump}` }],
+    },
+  ],
+  generationConfig: {
+    responseMimeType: "application/json",
+    maxOutputTokens: 2048,
+    temperature: 0.65,
+    responseSchema: {
+      type: "object",
+      properties: {
+        actions: { type: "array", items: { type: "string" } },
+        release: { type: "array", items: { type: "string" } },
+        rootStress: { type: "string" },
+        groundingStatement: { type: "string" },
+      },
+      required: ["actions", "release", "rootStress", "groundingStatement"],
+    },
+  },
+});
+
+async function callGemini(dump: string, apiKey: string) {
+  let lastError = "Gemini API error";
+
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildGeminiRequest(dump)),
+        }
+      );
+
+      if (response.ok) return response.json();
+
+      const body = await response.text();
+      lastError = body;
+      console.error("Gemini error:", { model, attempt: attempt + 1, status: response.status, body });
+
+      if (![429, 500, 502, 503, 504].includes(response.status)) {
+        throw new Error("The AI could not process that request. Please try rephrasing it.");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+    }
+  }
+
+  throw new Error(lastError.includes("high demand") ? "The AI is busy right now. Please try again in a moment." : "The AI service is temporarily unavailable. Please try again.");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -32,55 +92,7 @@ Deno.serve(async (req) => {
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }],
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: `Here is my mind dump:\n\n${dump}` }],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "object",
-              properties: {
-                actions: { type: "array", items: { type: "string" } },
-                release: { type: "array", items: { type: "string" } },
-                rootStress: { type: "string" },
-                groundingStatement: { type: "string" },
-              },
-              required: ["actions", "release", "rootStress", "groundingStatement"],
-            },
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("Gemini error:", response.status, t);
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({ error: "Gemini API error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const data = await response.json();
+    const data = await callGemini(dump, GEMINI_API_KEY);
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("No response from Gemini.");
     const parsedRaw = JSON.parse(text);
