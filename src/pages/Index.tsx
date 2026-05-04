@@ -72,7 +72,7 @@ const Index = () => {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Unloading...
+                Clearing your mental load...
               </>
             ) : (
               "Unload My Mind"
