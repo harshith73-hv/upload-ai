@@ -140,6 +140,10 @@ const Index = () => {
             >
               Reset
             </Button>
+
+            <p className="text-center text-xs text-muted-foreground/70 mt-4">
+              Without AI — sorting your mental load takes 45 to 60 minutes. UnloadAI does it in under 20 seconds.
+            </p>
           </section>
         )}
 
