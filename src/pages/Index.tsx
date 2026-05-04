@@ -128,6 +128,18 @@ const Index = () => {
                 "{result.grounding_statement}"
               </p>
             </ResultCard>
+
+            <Button
+              onClick={() => {
+                setResult(null);
+                setDump("");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              variant="outline"
+              className="w-full h-14 text-base font-medium rounded-2xl"
+            >
+              Reset
+            </Button>
           </section>
         )}
 
