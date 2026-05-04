@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   CheckCircle2,
   Wind,
   Heart,
@@ -16,6 +22,7 @@ import {
   Moon,
   ArrowRight,
   RotateCcw,
+  Wrench,
 } from "lucide-react";
 
 type UnloadResult = {
