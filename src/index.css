@@ -36,12 +36,35 @@
 
     --radius: 1.25rem;
 
+    /* Warm amber for emotional/personal cards */
+    --warm: 35 65% 92%;
+    --warm-foreground: 25 40% 25%;
+    --warm-border: 35 55% 80%;
+    --warm-accent: 30 75% 55%;
+
+    /* Light green for action/do cards */
+    --action: 130 40% 93%;
+    --action-foreground: 150 35% 22%;
+    --action-border: 135 35% 80%;
+
     --gradient-soft: linear-gradient(180deg, hsl(80 30% 98%) 0%, hsl(130 25% 95%) 100%);
+    --gradient-warm: linear-gradient(180deg, hsl(40 70% 96%) 0%, hsl(30 65% 92%) 100%);
     --shadow-soft: 0 8px 32px -12px hsl(150 25% 40% / 0.12);
     --shadow-card: 0 1px 12px -4px hsl(150 20% 30% / 0.05);
+    --shadow-warm: 0 8px 32px -12px hsl(30 60% 45% / 0.18);
 
     --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
+}
+
+@layer utilities {
+  .bg-warm { background-color: hsl(var(--warm)); }
+  .text-warm-foreground { color: hsl(var(--warm-foreground)); }
+  .border-warm { border-color: hsl(var(--warm-border)); }
+  .text-warm-accent { color: hsl(var(--warm-accent)); }
+  .bg-action { background-color: hsl(var(--action)); }
+  .text-action-foreground { color: hsl(var(--action-foreground)); }
+  .border-action { border-color: hsl(var(--action-border)); }
 }
 
 @layer base {
