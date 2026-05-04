@@ -97,7 +97,7 @@ Example — if your task is *complete hackathon submission:*
 
 ## 🚀 Live Demo
 
-🔗 **[Try UnloadAI →](https://preview--mind-dump-aid.lovable.app/)**
+🔗 **[Try UnloadAI →](https://upload-ai.lovable.app/)**
 
 > Replace the link above with your actual Lovable published URL
 
