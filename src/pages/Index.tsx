@@ -129,6 +129,10 @@ const Index = () => {
               </p>
             </ResultCard>
 
+            <p className="text-center text-sm text-muted-foreground">
+              {result.todo_today.length} action {result.todo_today.length === 1 ? "item" : "items"} · {result.let_go.length} {result.let_go.length === 1 ? "thing" : "things"} to release · 1 root stressor identified
+            </p>
+
             <Button
               onClick={() => {
                 setResult(null);
