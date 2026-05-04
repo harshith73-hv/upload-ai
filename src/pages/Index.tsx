@@ -473,7 +473,9 @@ const ResultCard = ({
   );
 };
 
-/* ---------------- 3-MINUTE RESET ---------------- */
+/* ---------------- 60 SECOND RESET ---------------- */
+const STEP_DURATIONS = { 1: 30, 2: 20, 3: 20 } as const;
+
 const ThreeMinuteReset = ({
   groundingQuestion,
   intention,
@@ -483,13 +485,13 @@ const ThreeMinuteReset = ({
   intention: string;
   onComplete: () => void;
 }) => {
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0); // 0 = idle, 1-3 = steps
-  const [secondsLeft, setSecondsLeft] = useState(60);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [breathPhase, setBreathPhase] = useState<"in" | "out">("in");
 
   useEffect(() => {
     if (step === 0) return;
-    setSecondsLeft(60);
+    setSecondsLeft(STEP_DURATIONS[step]);
     const id = setInterval(() => {
       setSecondsLeft((s) => (s <= 1 ? 0 : s - 1));
     }, 1000);
@@ -518,13 +520,13 @@ const ThreeMinuteReset = ({
     <div className="bg-card rounded-3xl p-7 md:p-9 border border-border shadow-[var(--shadow-card)] mt-8">
       <div className="flex items-center gap-2 mb-2 text-primary">
         <Sparkles className="h-5 w-5" />
-        <h2 className="text-sm font-medium uppercase tracking-wider">Your 3 minute reset</h2>
+        <h2 className="text-sm font-medium uppercase tracking-wider">Your 60 Second Reset</h2>
       </div>
 
       {step === 0 && (
         <>
           <p className="text-foreground/80 mb-6">
-            Three gentle steps. About a minute each. Just follow along.
+            Three short steps. 70 seconds total. Just follow along.
           </p>
           <Button
             onClick={() => setStep(1)}
