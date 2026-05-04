@@ -689,6 +689,10 @@ const ShiftScreen = ({
             <RotateCcw className="mr-2 h-4 w-4" />
             New Reset
           </Button>
+
+          <p className="text-center text-xs text-muted-foreground/70 leading-relaxed pt-4">
+            UnloadAI — turning 2 hours of mental spiral into 5 minutes of clarity. Built for every human carrying too much.
+          </p>
         </>
       )}
     </section>
