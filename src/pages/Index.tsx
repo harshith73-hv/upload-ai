@@ -55,7 +55,7 @@ const Index = () => {
 
   const handleBegin = () => {
     if (dump.trim().length < 10) {
-      toast.error("Write a little more — even one paragraph helps.");
+     toast("Your thoughts are safe here. Type anything — even just one word about what is weighing on you. There is no wrong answer.", { duration: 4000 });
       return;
     }
     setScreen("person");
@@ -208,6 +208,22 @@ const EntryScreen = ({
 );
 
 /* ---------------- SCREEN 2 ---------------- */
+const LOADING_MESSAGES = [
+  "Reading every word you wrote…",
+  "Finding what matters most…",
+  "Building your personal reset plan…",
+];
+
+const LoadingMessage = () => {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIdx((i) => (i + 1) % LOADING_MESSAGES.length);
+    }, 2000);
+    return () => clearInterval(id);
+  }, []);
+  return <span>{LOADING_MESSAGES[idx]}</span>;
+};
 const PersonScreen = ({
   person,
   setPerson,
@@ -248,7 +264,7 @@ const PersonScreen = ({
       {loading ? (
         <>
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Reading every word…
+          <LoadingMessage />
         </>
       ) : (
         <>
@@ -681,13 +697,26 @@ const ShiftScreen = ({
             </p>
           </div>
 
-          <Button
+         <Button
             onClick={onReset}
             variant="outline"
             className="w-full h-14 text-base font-medium rounded-2xl"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             New Reset
+          </Button>
+
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(
+                "I just used UnloadAI to clear my mental overload in 5 minutes. If you are carrying too much right now — try it: " + window.location.href + " Built for every human under pressure."
+              );
+              toast("Copied! Paste it anywhere to share.");
+            }}
+            variant="outline"
+            className="w-full h-14 text-base font-medium rounded-2xl border-primary/30 text-primary"
+          >
+            Share Your Reset
           </Button>
 
           <p className="text-center text-xs text-muted-foreground/70 leading-relaxed pt-4">
