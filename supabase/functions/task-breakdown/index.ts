@@ -6,26 +6,20 @@ const corsHeaders = {
 const SYSTEM_PROMPT = `For every action item the user needs to do, generate a brutally specific how-to breakdown. Always include the exact tool or app to open, the exact words to type if using an AI tool like Claude or ChatGPT, the fastest shortcut to complete it, and a realistic time estimate.
 
 Examples:
-- If task is complete hackathon — give exact steps including open Lovable, open Loom to record video, open Google Drive to create folder, open Google Form to submit, open LinkedIn to post.
-- If task is reply to emails — say open Gmail, search is:unread is:important, reply to top 3 only using one sentence each.
-- If task is prepare for meeting — say open Claude.ai, type this exact prompt: help me prepare for a meeting about X, give 5 key points and 3 questions.
-- If task is finish a report — say open Claude.ai, paste your notes, ask it to write the report, edit and export as PDF.
+- complete hackathon → open Lovable, open Loom to record video, open Google Drive, open Google Form to submit, open LinkedIn to post.
+- reply to emails → open Gmail, search is:unread is:important, reply to top 3 only with one sentence each.
+- prepare for meeting → open Claude.ai, type: "help me prepare for a meeting about X, give 5 key points and 3 questions".
 
-Always be this specific. Never say things like 'work on your task' or 'take it step by step' — give the actual steps with actual tool names and actual prompts.
+Always be this specific. Never say "work on your task" — give actual steps with actual tool names and prompts.
 
-Return ONLY valid JSON with shape: { "breakdowns": [ { "task": string, "estimate": string (e.g. "25 min"), "steps": string[] (3-7 specific steps each naming a real tool/app/prompt) } ] } — one breakdown per input task, in the same order.`;
+Call the task_breakdowns tool with one breakdown per input task, in the same order.`;
 
-const buildRequest = (tasks: string[], context: string) => ({
-  systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-  contents: [{
-    role: "user",
-    parts: [{ text: `Context from user's mind dump:\n${context}\n\nTasks to break down:\n${tasks.map((t, i) => `${i + 1}. ${t}`).join("\n")}` }],
-  }],
-  generationConfig: {
-    responseMimeType: "application/json",
-    maxOutputTokens: 3072,
-    temperature: 0.6,
-    responseSchema: {
+const tools = [{
+  type: "function",
+  function: {
+    name: "task_breakdowns",
+    description: "Return step-by-step breakdowns for each task.",
+    parameters: {
       type: "object",
       properties: {
         breakdowns: {
@@ -38,33 +32,15 @@ const buildRequest = (tasks: string[], context: string) => ({
               steps: { type: "array", items: { type: "string" } },
             },
             required: ["task", "estimate", "steps"],
+            additionalProperties: false,
           },
         },
       },
       required: ["breakdowns"],
+      additionalProperties: false,
     },
   },
-});
-
-const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
-
-async function callGemini(tasks: string[], context: string, apiKey: string) {
-  let lastError = "Gemini API error";
-  for (const model of MODELS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildRequest(tasks, context)) }
-      );
-      if (r.ok) return r.json();
-      lastError = await r.text();
-      console.error("Gemini error:", { model, attempt, status: r.status, body: lastError });
-      if (![429, 500, 502, 503, 504].includes(r.status)) break;
-      await new Promise((res) => setTimeout(res, 500 * (attempt + 1)));
-    }
-  }
-  throw new Error("AI service unavailable. Try again.");
-}
+}];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -75,12 +51,44 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
-    const data = await callGemini(tasks.slice(0, 8), context || "", apiKey);
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("No response from Gemini.");
-    return new Response(text, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const trimmed = tasks.slice(0, 8);
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `Context from user's mind dump:\n${context || ""}\n\nTasks to break down:\n${trimmed.map((t: string, i: number) => `${i + 1}. ${t}`).join("\n")}` },
+        ],
+        tools,
+        tool_choice: { type: "function", function: { name: "task_breakdowns" } },
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again in a moment." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds to your Lovable AI workspace." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const body = await response.text();
+      console.error("AI gateway error:", response.status, body);
+      throw new Error("AI gateway error");
+    }
+
+    const data = await response.json();
+    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (!args) throw new Error("No structured response from AI.");
+    return new Response(args, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("task-breakdown error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
