@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   CheckCircle2,
   Wind,
   Heart,
@@ -16,6 +22,7 @@ import {
   Moon,
   ArrowRight,
   RotateCcw,
+  Wrench,
 } from "lucide-react";
 
 type UnloadResult = {
@@ -48,7 +55,7 @@ const Index = () => {
 
   const handleBegin = () => {
     if (dump.trim().length < 10) {
-      toast.error("Write a little more — even one paragraph helps.");
+     toast("Your thoughts are safe here. Type anything — even just one word about what is weighing on you. There is no wrong answer.", { duration: 4000 });
       return;
     }
     setScreen("person");
@@ -201,6 +208,22 @@ const EntryScreen = ({
 );
 
 /* ---------------- SCREEN 2 ---------------- */
+const LOADING_MESSAGES = [
+  "Reading every word you wrote…",
+  "Finding what matters most…",
+  "Building your personal reset plan…",
+];
+
+const LoadingMessage = () => {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIdx((i) => (i + 1) % LOADING_MESSAGES.length);
+    }, 2000);
+    return () => clearInterval(id);
+  }, []);
+  return <span>{LOADING_MESSAGES[idx]}</span>;
+};
 const PersonScreen = ({
   person,
   setPerson,
@@ -241,7 +264,7 @@ const PersonScreen = ({
       {loading ? (
         <>
           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Reading every word…
+          <LoadingMessage />
         </>
       ) : (
         <>
@@ -349,6 +372,8 @@ const ResultsScreen = ({
       </div>
     </ResultCard>
 
+    <TaskBreakdownSection tasks={result.todo_today} />
+
     <ThreeMinuteReset
       groundingQuestion={result.grounding_question}
       intention={result.intention}
@@ -356,6 +381,81 @@ const ResultsScreen = ({
     />
   </section>
 );
+
+/* ---------------- TASK BREAKDOWN ---------------- */
+type Breakdown = { task: string; estimate: string; steps: string[] };
+
+const TaskBreakdownSection = ({ tasks }: { tasks: string[] }) => {
+  const [loading, setLoading] = useState(true);
+  const [breakdowns, setBreakdowns] = useState<Breakdown[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("task-breakdown", {
+          body: { tasks, context: "" },
+        });
+        if (cancel) return;
+        if (error) throw error;
+        if ((data as any)?.error) throw new Error((data as any).error);
+        setBreakdowns((data as any).breakdowns || []);
+      } catch (e: any) {
+        if (!cancel) setError(e?.message || "Could not load breakdowns.");
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [tasks]);
+
+  return (
+    <article className="bg-info border border-info rounded-3xl p-7 md:p-8 mt-2 shadow-[var(--shadow-card)]">
+      <div className="flex items-center gap-2 mb-4 text-info-accent">
+        <Wrench className="h-5 w-5" />
+        <h2 className="text-sm font-medium uppercase tracking-wider">How To Actually Do It</h2>
+      </div>
+      {loading && (
+        <div className="flex items-center gap-2 text-info-foreground/70 text-sm py-4">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Building your step-by-step playbook…
+        </div>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {breakdowns && breakdowns.length > 0 && (
+        <Accordion type="multiple" className="space-y-3">
+          {breakdowns.map((b, i) => (
+            <AccordionItem
+              key={i}
+              value={`b-${i}`}
+              className="bg-card border border-info rounded-2xl px-5 data-[state=open]:shadow-[var(--shadow-card)]"
+            >
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex flex-col items-start text-left gap-1 pr-3">
+                  <span className="text-base font-medium text-foreground">{b.task}</span>
+                  <span className="text-xs text-info-accent font-medium">≈ {b.estimate}</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <ol className="space-y-3 pt-1 pb-2">
+                  {b.steps.map((s, j) => (
+                    <li key={j} className="flex gap-3 text-foreground/85 text-[15px] leading-relaxed">
+                      <span className="text-info-accent shrink-0 font-medium">{j + 1}.</span>
+                      <span>{s}</span>
+                    </li>
+                  ))}
+                </ol>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      )}
+    </article>
+  );
+};
 
 const ResultCard = ({
   icon,
@@ -389,7 +489,9 @@ const ResultCard = ({
   );
 };
 
-/* ---------------- 3-MINUTE RESET ---------------- */
+/* ---------------- 60 SECOND RESET ---------------- */
+const STEP_DURATIONS = { 1: 30, 2: 20, 3: 20 } as const;
+
 const ThreeMinuteReset = ({
   groundingQuestion,
   intention,
@@ -399,13 +501,13 @@ const ThreeMinuteReset = ({
   intention: string;
   onComplete: () => void;
 }) => {
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0); // 0 = idle, 1-3 = steps
-  const [secondsLeft, setSecondsLeft] = useState(60);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [breathPhase, setBreathPhase] = useState<"in" | "out">("in");
 
   useEffect(() => {
     if (step === 0) return;
-    setSecondsLeft(60);
+    setSecondsLeft(STEP_DURATIONS[step]);
     const id = setInterval(() => {
       setSecondsLeft((s) => (s <= 1 ? 0 : s - 1));
     }, 1000);
@@ -434,13 +536,13 @@ const ThreeMinuteReset = ({
     <div className="bg-card rounded-3xl p-7 md:p-9 border border-border shadow-[var(--shadow-card)] mt-8">
       <div className="flex items-center gap-2 mb-2 text-primary">
         <Sparkles className="h-5 w-5" />
-        <h2 className="text-sm font-medium uppercase tracking-wider">Your 3 minute reset</h2>
+        <h2 className="text-sm font-medium uppercase tracking-wider">Your 60 Second Reset</h2>
       </div>
 
       {step === 0 && (
         <>
           <p className="text-foreground/80 mb-6">
-            Three gentle steps. About a minute each. Just follow along.
+            Three short steps. 70 seconds total. Just follow along.
           </p>
           <Button
             onClick={() => setStep(1)}
@@ -595,7 +697,7 @@ const ShiftScreen = ({
             </p>
           </div>
 
-          <Button
+         <Button
             onClick={onReset}
             variant="outline"
             className="w-full h-14 text-base font-medium rounded-2xl"
@@ -603,6 +705,23 @@ const ShiftScreen = ({
             <RotateCcw className="mr-2 h-4 w-4" />
             New Reset
           </Button>
+
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(
+                "I just used UnloadAI to clear my mental overload in 5 minutes. If you are carrying too much right now — try it: " + window.location.href + " Built for every human under pressure."
+              );
+              toast("Copied! Paste it anywhere to share.");
+            }}
+            variant="outline"
+            className="w-full h-14 text-base font-medium rounded-2xl border-primary/30 text-primary"
+          >
+            Share Your Reset
+          </Button>
+
+          <p className="text-center text-xs text-muted-foreground/70 leading-relaxed pt-4">
+            UnloadAI — turning 2 hours of mental spiral into 5 minutes of clarity. Built for every human carrying too much.
+          </p>
         </>
       )}
     </section>
