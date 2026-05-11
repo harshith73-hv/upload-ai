@@ -4,79 +4,113 @@
 
 @layer base {
   :root {
-    /* UnloadAI — soft warm white, calm sage primary */
-    /* #FAFAF8 */
-    --background: 60 14% 98%;
-    --foreground: 155 15% 22%;
+    /* Saathi — deep warm midnight, ember amber, sage green */
+    /* #0E0E1A */
+    --background: 240 28% 8%;
+    /* #F5F0E8 ivory */
+    --foreground: 36 38% 93%;
 
-    /* #FFFFFF cards on warm white bg */
-    --card: 0 0% 100%;
-    --card-foreground: 155 15% 22%;
+    /* #1A1A2E cards */
+    --card: 235 30% 14%;
+    --card-foreground: 36 38% 93%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 155 15% 22%;
+    --popover: 235 30% 14%;
+    --popover-foreground: 36 38% 93%;
 
-    --primary: 150 25% 45%;
-    --primary-foreground: 60 14% 98%;
-    --primary-glow: 145 35% 78%;
+    /* #D4845A ember amber */
+    --primary: 19 56% 59%;
+    --primary-foreground: 240 28% 8%;
+    --primary-glow: 19 70% 70%;
 
-    --secondary: 60 14% 96%;
-    --secondary-foreground: 155 20% 28%;
+    /* #7BA99A sage */
+    --secondary: 161 19% 57%;
+    --secondary-foreground: 240 28% 8%;
 
-    --muted: 60 12% 95%;
-    --muted-foreground: 150 6% 48%;
+    --muted: 235 22% 18%;
+    --muted-foreground: 36 18% 72%;
 
-    --accent: 135 25% 94%;
-    --accent-foreground: 155 25% 25%;
+    --accent: 19 56% 59%;
+    --accent-foreground: 240 28% 8%;
 
-    --destructive: 10 50% 60%;
-    --destructive-foreground: 60 14% 98%;
+    --destructive: 10 65% 58%;
+    --destructive-foreground: 36 38% 93%;
 
-    /* #E8E8E0 — very subtle */
-    --border: 60 12% 89%;
-    --input: 60 12% 92%;
-    --ring: 150 25% 45%;
+    --border: 235 22% 22%;
+    --input: 235 22% 22%;
+    --ring: 19 56% 59%;
 
     --radius: 1.25rem;
 
-    /* Amber #FFF8EC — Your Person */
-    --warm: 41 100% 96%;
-    --warm-foreground: 25 40% 25%;
-    --warm-border: 38 65% 88%;
-    --warm-accent: 30 75% 52%;
+    /* warm amber surfaces */
+    --warm: 19 56% 59%;
+    --warm-foreground: 36 38% 95%;
+    --warm-border: 19 56% 45%;
+    --warm-accent: 19 80% 75%;
 
-    /* Green #E8F5EE — action cards */
-    --action: 145 38% 93%;
-    --action-foreground: 150 35% 22%;
-    --action-border: 145 28% 84%;
+    /* sage / "action" cards */
+    --action: 161 19% 25%;
+    --action-foreground: 161 30% 88%;
+    --action-border: 161 19% 35%;
 
-    /* Blue #EEF4FF — How To Actually Do It */
-    --info: 220 100% 97%;
-    --info-foreground: 220 45% 30%;
-    --info-border: 220 50% 90%;
-    --info-accent: 220 70% 55%;
+    /* info cards */
+    --info: 235 30% 18%;
+    --info-foreground: 36 38% 93%;
+    --info-border: 235 25% 30%;
+    --info-accent: 19 70% 70%;
 
-    --gradient-soft: linear-gradient(180deg, hsl(60 14% 98%) 0%, hsl(60 12% 96%) 100%);
-    --shadow-soft: 0 8px 32px -12px hsl(150 25% 40% / 0.10);
-    --shadow-card: 0 1px 10px -4px hsl(150 20% 30% / 0.04);
-    --shadow-warm: 0 8px 32px -12px hsl(30 60% 45% / 0.14);
+    --gradient-soft: radial-gradient(ellipse at top, hsl(235 30% 12%) 0%, hsl(240 28% 8%) 70%);
+    --shadow-soft: 0 8px 40px -12px hsl(19 70% 40% / 0.35);
+    --shadow-card: 0 1px 16px -4px hsl(0 0% 0% / 0.5);
+    --shadow-warm: 0 8px 40px -10px hsl(19 80% 50% / 0.40);
 
     --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
 @layer utilities {
-  .bg-warm { background-color: hsl(var(--warm)); }
+  .bg-warm { background-color: hsl(var(--warm) / 0.18); }
+  .bg-warm-solid { background-color: hsl(var(--warm)); }
   .text-warm-foreground { color: hsl(var(--warm-foreground)); }
-  .border-warm { border-color: hsl(var(--warm-border)); }
+  .border-warm { border-color: hsl(var(--warm-border) / 0.4); }
   .text-warm-accent { color: hsl(var(--warm-accent)); }
-  .bg-action { background-color: hsl(var(--action)); }
+  .bg-action { background-color: hsl(var(--action) / 0.4); }
   .text-action-foreground { color: hsl(var(--action-foreground)); }
-  .border-action { border-color: hsl(var(--action-border)); }
+  .border-action { border-color: hsl(var(--action-border) / 0.5); }
   .bg-info { background-color: hsl(var(--info)); }
   .text-info-foreground { color: hsl(var(--info-foreground)); }
   .border-info { border-color: hsl(var(--info-border)); }
   .text-info-accent { color: hsl(var(--info-accent)); }
+  .text-sage { color: hsl(var(--secondary)); }
+  .bg-sage { background-color: hsl(var(--secondary)); }
+
+  .font-serif-s { font-family: 'Cormorant Garamond', Georgia, serif; }
+  .font-ui { font-family: 'DM Sans', system-ui, sans-serif; }
+
+  .saathi-orb {
+    background: radial-gradient(circle, hsl(var(--warm) / 0.55) 0%, hsl(var(--warm) / 0.15) 50%, transparent 80%);
+    filter: blur(8px);
+  }
+
+  @keyframes saathi-breathe {
+    0%   { transform: scale(0.7); border-radius: 48% 52% 46% 54% / 50% 48% 52% 50%; opacity: 0.6; }
+    40%  { transform: scale(1.15); border-radius: 52% 48% 54% 46% / 48% 52% 48% 52%; opacity: 0.95; }
+    100% { transform: scale(0.7); border-radius: 48% 52% 46% 54% / 50% 48% 52% 50%; opacity: 0.6; }
+  }
+  .saathi-breathing {
+    animation: saathi-breathe 10s ease-in-out infinite;
+  }
+
+  @keyframes soft-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+  .soft-pulse { animation: soft-pulse 3s ease-in-out infinite; }
+
+  @keyframes dot-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.7; box-shadow: 0 0 0 0 hsl(var(--secondary) / 0.5); }
+    50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 0 6px hsl(var(--secondary) / 0); }
+  }
+  .dot-pulse { animation: dot-pulse 2.4s ease-in-out infinite; }
 }
 
 @layer base {
@@ -86,13 +120,15 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
     background: var(--gradient-soft);
+    background-attachment: fixed;
     min-height: 100vh;
   }
 
   h1, h2, h3 {
-    font-family: 'Fraunces', Georgia, serif;
-    letter-spacing: -0.02em;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    letter-spacing: -0.01em;
+    font-weight: 500;
   }
 }

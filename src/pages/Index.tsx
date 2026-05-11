@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,13 +16,14 @@ import {
   Wind,
   Heart,
   Sparkles,
-  Loader2,
   Zap,
   HeartHandshake,
   Moon,
   ArrowRight,
   RotateCcw,
   Wrench,
+  Phone,
+  Loader2,
 } from "lucide-react";
 
 type UnloadResult = {
@@ -39,9 +40,29 @@ type UnloadResult = {
   };
   grounding_question: string;
   intention: string;
+  crisis_detected?: boolean;
 };
 
 type Screen = "entry" | "person" | "results" | "shift";
+
+const CRISIS_PATTERNS = [
+  "nobody would miss me",
+  "want it to stop",
+  "don't want to be here",
+  "dont want to be here",
+  "made my decision",
+  "last time",
+  "everyone would be better off",
+  "ending it",
+  "can't do this anymore",
+  "cant do this anymore",
+  "no point",
+];
+
+const detectCrisisLocal = (text: string) => {
+  const lower = text.toLowerCase();
+  return CRISIS_PATTERNS.some((p) => lower.includes(p));
+};
 
 const Index = () => {
   const [screen, setScreen] = useState<Screen>("entry");
@@ -52,18 +73,20 @@ const Index = () => {
   const [result, setResult] = useState<UnloadResult | null>(null);
   const [endLoad, setEndLoad] = useState(5);
   const [shiftSubmitted, setShiftSubmitted] = useState(false);
+  const [crisisOpen, setCrisisOpen] = useState(false);
 
   const handleBegin = () => {
     if (dump.trim().length < 10) {
-     toast("Your thoughts are safe here. Type anything — even just one word about what is weighing on you. There is no wrong answer.", { duration: 4000 });
+      toast("saathi is here. type anything — even one word about what is weighing on you.", { duration: 4000 });
       return;
     }
+    if (detectCrisisLocal(dump)) setCrisisOpen(true);
     setScreen("person");
   };
 
   const handlePersonContinue = async () => {
     if (person.trim().length < 1) {
-      toast.error("Type one name — anyone who matters.");
+      toast.error("type one name — anyone who matters.");
       return;
     }
     setLoading(true);
@@ -73,11 +96,13 @@ const Index = () => {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      setResult(data as UnloadResult);
+      const res = data as UnloadResult;
+      setResult(res);
+      if (res.crisis_detected) setCrisisOpen(true);
       setEndLoad(Math.max(1, load - 2));
       setScreen("results");
     } catch (e: any) {
-      toast.error(e?.message || "Something went wrong. Try again.");
+      toast.error(e?.message || "something went wrong. try again.");
     } finally {
       setLoading(false);
     }
@@ -91,19 +116,26 @@ const Index = () => {
     setResult(null);
     setEndLoad(5);
     setShiftSubmitted(false);
+    setCrisisOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
-    <main className="min-h-screen w-full px-5 py-12 md:py-20">
+    <main className="min-h-screen w-full px-5 py-10 md:py-16">
       <div className="mx-auto max-w-3xl">
-        <header className="text-center mb-10">
-          <h1 className="text-5xl md:text-6xl font-medium text-foreground mb-3">
-            Unload<span className="text-primary">AI</span>
-          </h1>
-          <p className="text-base md:text-lg text-muted-foreground italic">
-            From overwhelmed to clear in 5 minutes.
-          </p>
+        <header className="mb-12">
+          <div className="flex items-center gap-2.5">
+            <span className="block h-2 w-2 rounded-full bg-sage dot-pulse" />
+            <span className="font-ui text-xs uppercase tracking-[0.18em] text-foreground/70">
+              saathi is with you
+            </span>
+          </div>
+          <div className="mt-10 text-center">
+            <h1 className="font-serif-s text-6xl md:text-7xl text-foreground">saathi</h1>
+            <p className="font-serif-s italic text-lg md:text-xl text-foreground/70 mt-2">
+              your companion through everything
+            </p>
+          </div>
         </header>
 
         {screen === "entry" && (
@@ -116,14 +148,15 @@ const Index = () => {
           />
         )}
 
-        {screen === "person" && (
+        {screen === "person" && !loading && (
           <PersonScreen
             person={person}
             setPerson={setPerson}
-            loading={loading}
             onContinue={handlePersonContinue}
           />
         )}
+
+        {screen === "person" && loading && <SaathiLoading />}
 
         {screen === "results" && result && (
           <ResultsScreen
@@ -144,15 +177,19 @@ const Index = () => {
           />
         )}
 
-        <footer className="text-center mt-16 text-sm text-muted-foreground/70">
-          Breathe. You're doing fine.
+        <footer className="text-center mt-20 mb-4">
+          <p className="font-serif-s italic text-foreground/50 text-sm">
+            saathi is always here. you are never alone.
+          </p>
         </footer>
       </div>
+
+      {crisisOpen && <CrisisOverlay onClose={() => setCrisisOpen(false)} />}
     </main>
   );
 };
 
-/* ---------------- SCREEN 1 ---------------- */
+/* ---------------- ENTRY ---------------- */
 const EntryScreen = ({
   load,
   setLoad,
@@ -166,13 +203,13 @@ const EntryScreen = ({
   setDump: (s: string) => void;
   onBegin: () => void;
 }) => (
-  <section className="space-y-8 animate-in fade-in duration-500">
-    <div className="bg-card rounded-3xl p-6 md:p-7 border border-border shadow-[var(--shadow-card)]">
-      <div className="flex items-baseline justify-between mb-4">
-        <label className="text-sm font-medium text-foreground/80">
-          How full is your mental load right now?
+  <section className="space-y-10 animate-in fade-in duration-700">
+    <div className="px-1">
+      <div className="flex items-baseline justify-between mb-3">
+        <label className="font-ui text-xs uppercase tracking-[0.15em] text-foreground/60">
+          how full is your mental load right now
         </label>
-        <span className="text-2xl font-medium text-primary">{load}</span>
+        <span className="font-serif-s text-3xl text-primary">{load}</span>
       </div>
       <Slider
         value={[load]}
@@ -180,103 +217,121 @@ const EntryScreen = ({
         min={1}
         max={10}
         step={1}
-        className="my-2"
-      />
-      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-        <span>1 · light</span>
-        <span>10 · overflowing</span>
-      </div>
-    </div>
-
-    <div className="bg-card rounded-3xl p-2 shadow-[var(--shadow-card)] border border-border">
-      <Textarea
-        value={dump}
-        onChange={(e) => setDump(e.target.value)}
-        placeholder="Type everything in your head — worries, deadlines, feelings, things unsaid, people you miss, fears. No filter. Just dump it all."
-        className="min-h-[280px] text-base md:text-lg leading-relaxed resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-6 placeholder:text-muted-foreground/60"
       />
     </div>
 
-    <Button
+    <Textarea
+      value={dump}
+      onChange={(e) => setDump(e.target.value)}
+      placeholder="what is weighing on you right now? say it however it comes out. broken sentences are fine. one word is fine. everything is fine here."
+      className="min-h-[340px] text-base md:text-lg leading-[1.9] resize-none border-0 bg-transparent shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none p-2 placeholder:text-foreground/35 placeholder:italic placeholder:font-serif-s text-foreground/90"
+      style={{ boxShadow: "none" }}
+    />
+
+    <button
       onClick={onBegin}
-      className="w-full h-16 text-lg font-medium rounded-2xl shadow-[var(--shadow-soft)] transition-[var(--transition-smooth)] hover:scale-[1.01]"
+      className="w-full text-center py-6 font-serif-s italic text-xl md:text-2xl text-primary soft-pulse hover:opacity-100 transition-opacity"
     >
-      Begin My Reset
-      <ArrowRight className="ml-2 h-5 w-5" />
-    </Button>
+      when you are ready — saathi will listen ›
+    </button>
   </section>
 );
 
-/* ---------------- SCREEN 2 ---------------- */
-const LOADING_MESSAGES = [
-  "Reading every word you wrote…",
-  "Finding what matters most…",
-  "Building your personal reset plan…",
-];
-
-const LoadingMessage = () => {
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => {
-      setIdx((i) => (i + 1) % LOADING_MESSAGES.length);
-    }, 2000);
-    return () => clearInterval(id);
-  }, []);
-  return <span>{LOADING_MESSAGES[idx]}</span>;
-};
+/* ---------------- PERSON ---------------- */
 const PersonScreen = ({
   person,
   setPerson,
-  loading,
   onContinue,
 }: {
   person: string;
   setPerson: (s: string) => void;
-  loading: boolean;
   onContinue: () => void;
 }) => (
-  <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-    <div className="bg-warm rounded-3xl p-8 md:p-12 border border-warm text-center shadow-[var(--shadow-warm)]">
-      <Heart className="h-8 w-8 text-warm-accent mx-auto mb-5" />
+  <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div
+      className="rounded-[2rem] p-10 md:p-14 text-center relative overflow-hidden"
+      style={{ backgroundColor: "hsl(19 56% 59% / 0.15)" }}
+    >
+      <div className="flex justify-center mb-8">
+        <div className="relative h-24 w-24 flex items-center justify-center">
+          <div className="absolute inset-0 saathi-orb saathi-breathing" />
+          <div className="absolute inset-2 rounded-full bg-warm-solid opacity-40 blur-md saathi-breathing" />
+        </div>
+      </div>
       <p
-        className="text-2xl md:text-3xl leading-relaxed text-warm-foreground"
-        style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+        className="font-serif-s italic text-warm-foreground leading-relaxed"
+        style={{ fontSize: "28px", lineHeight: 1.4 }}
       >
-        Before we clear your mind — think of one person whose face makes everything worth it. Type their name.
+        before saathi can truly help — think of one person whose face makes everything worth it. type their name.
       </p>
     </div>
 
-    <Input
-      value={person}
-      onChange={(e) => setPerson(e.target.value)}
-      placeholder="Their name…"
-      className="h-16 text-lg text-center rounded-2xl border-border bg-card shadow-[var(--shadow-card)]"
-      autoFocus
-      disabled={loading}
-      onKeyDown={(e) => e.key === "Enter" && !loading && onContinue()}
-    />
-
-    <Button
-      onClick={onContinue}
-      disabled={loading}
-      className="w-full h-16 text-lg font-medium rounded-2xl shadow-[var(--shadow-soft)] transition-[var(--transition-smooth)] hover:scale-[1.01]"
-    >
-      {loading ? (
-        <>
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          <LoadingMessage />
-        </>
-      ) : (
-        <>
-          Continue
-          <ArrowRight className="ml-2 h-5 w-5" />
-        </>
-      )}
-    </Button>
+    <div className="mt-8 space-y-5">
+      <Input
+        value={person}
+        onChange={(e) => setPerson(e.target.value)}
+        placeholder="their name…"
+        className="h-16 text-lg text-center rounded-2xl border-border bg-card font-serif-s italic"
+        autoFocus
+        onKeyDown={(e) => e.key === "Enter" && onContinue()}
+      />
+      <Button
+        onClick={onContinue}
+        className="w-full h-14 font-ui text-base rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
+      >
+        continue
+        <ArrowRight className="ml-2 h-4 w-4" />
+      </Button>
+    </div>
   </section>
 );
 
-/* ---------------- SCREEN 3 + 4 ---------------- */
+/* ---------------- LOADING ---------------- */
+const LOADING_LINES = [
+  "saathi is reading every word…",
+  "saathi is understanding your weight…",
+  "saathi is here with you…",
+];
+const SaathiLoading = () => {
+  const [idx, setIdx] = useState(0);
+  const [revealed, setRevealed] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setIdx((i) => (i + 1) % LOADING_LINES.length), 2200);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    const id = setInterval(() => setRevealed((r) => (r >= 3 ? 3 : r + 1)), 1100);
+    return () => clearInterval(id);
+  }, []);
+  const words = ["your words", "your weight", "your moment"];
+  return (
+    <section className="flex flex-col items-center justify-center py-16 animate-in fade-in duration-700">
+      <div className="relative h-64 w-64 flex items-center justify-center mb-8">
+        <div className="absolute inset-0 saathi-orb saathi-breathing" />
+        <div
+          className="absolute inset-6 bg-warm-solid opacity-50 blur-xl saathi-breathing"
+          style={{ animationDelay: "-2s" }}
+        />
+      </div>
+      <p className="font-serif-s italic text-2xl text-foreground/85 mb-6">saathi is reading you</p>
+      <div className="flex flex-col items-center gap-1.5 min-h-[80px]">
+        {words.map((w, i) => (
+          <span
+            key={i}
+            className={`font-serif-s italic text-foreground/60 text-base transition-opacity duration-700 ${
+              i < revealed ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            — {w} —
+          </span>
+        ))}
+      </div>
+      <p className="sr-only">{LOADING_LINES[idx]}</p>
+    </section>
+  );
+};
+
+/* ---------------- RESULTS ---------------- */
 const ResultsScreen = ({
   result,
   person,
@@ -287,15 +342,15 @@ const ResultsScreen = ({
   onContinueToShift: () => void;
 }) => (
   <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-    <div className="text-center">
-      <span className="inline-block bg-accent text-accent-foreground px-5 py-2 rounded-full text-sm font-medium border border-border">
-        Detected: {result.situation_tag}
-      </span>
+    <div className="pl-4 border-l-2 border-primary">
+      <p className="font-ui text-xs uppercase tracking-[0.18em] text-foreground/70">
+        SAATHI UNDERSTANDS: {result.situation_tag}
+      </p>
     </div>
 
     <ResultCard
       icon={<CheckCircle2 className="h-5 w-5" />}
-      title="What you need to do today"
+      title="what saathi sees you need"
       tone="action"
     >
       <ol className="space-y-3">
@@ -308,7 +363,7 @@ const ResultsScreen = ({
       </ol>
     </ResultCard>
 
-    <ResultCard icon={<Wind className="h-5 w-5" />} title="What you need to let go">
+    <ResultCard icon={<Wind className="h-5 w-5" />} title="what saathi says you can release">
       <ul className="space-y-3">
         {result.let_go.map((item, i) => (
           <li key={i} className="flex gap-3 text-foreground/90">
@@ -319,13 +374,15 @@ const ResultsScreen = ({
       </ul>
     </ResultCard>
 
-    <ResultCard icon={<Heart className="h-5 w-5" />} title="What is really stressing you">
-      <p className="text-lg leading-relaxed text-foreground/90">{result.root_stress}</p>
+    <ResultCard icon={<Heart className="h-5 w-5" />} title="what is really happening beneath this">
+      <p className="text-lg leading-relaxed text-foreground/90 font-serif-s italic">
+        {result.root_stress}
+      </p>
     </ResultCard>
 
     <ResultCard
       icon={<Zap className="h-5 w-5" />}
-      title="What to open right now"
+      title="what saathi suggests right now"
       tone="action"
     >
       <ul className="space-y-3">
@@ -340,33 +397,26 @@ const ResultsScreen = ({
 
     <ResultCard
       icon={<HeartHandshake className="h-5 w-5" />}
-      title={`For you — and ${person}`}
+      title={`a message from saathi — for you and ${person}`}
       tone="warm"
     >
-      <p
-        className="text-lg md:text-xl leading-relaxed text-warm-foreground"
-        style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-      >
+      <p className="font-serif-s text-xl md:text-2xl leading-relaxed text-warm-foreground italic">
         {result.person_message}
       </p>
     </ResultCard>
 
-    <ResultCard icon={<Moon className="h-5 w-5" />} title="Your next 24 hours">
+    <ResultCard icon={<Moon className="h-5 w-5" />} title="saathi's gentle plan for you">
       <div className="space-y-4 text-foreground/90">
         <div>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Tonight</p>
+          <p className="font-ui text-xs uppercase tracking-wider text-foreground/55 mb-1">tonight</p>
           <p>{result.recovery_plan.tonight}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
-            Tomorrow morning
-          </p>
+          <p className="font-ui text-xs uppercase tracking-wider text-foreground/55 mb-1">tomorrow morning</p>
           <p>{result.recovery_plan.tomorrow_morning}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
-            Tomorrow afternoon
-          </p>
+          <p className="font-ui text-xs uppercase tracking-wider text-foreground/55 mb-1">tomorrow afternoon</p>
           <p>{result.recovery_plan.tomorrow_afternoon}</p>
         </div>
       </div>
@@ -402,7 +452,7 @@ const TaskBreakdownSection = ({ tasks }: { tasks: string[] }) => {
         if ((data as any)?.error) throw new Error((data as any).error);
         setBreakdowns((data as any).breakdowns || []);
       } catch (e: any) {
-        if (!cancel) setError(e?.message || "Could not load breakdowns.");
+        if (!cancel) setError(e?.message || "could not load breakdowns.");
       } finally {
         if (!cancel) setLoading(false);
       }
@@ -416,12 +466,12 @@ const TaskBreakdownSection = ({ tasks }: { tasks: string[] }) => {
     <article className="bg-info border border-info rounded-3xl p-7 md:p-8 mt-2 shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-2 mb-4 text-info-accent">
         <Wrench className="h-5 w-5" />
-        <h2 className="text-sm font-medium uppercase tracking-wider">How To Actually Do It</h2>
+        <h2 className="font-ui text-sm font-medium uppercase tracking-wider">how to actually do it</h2>
       </div>
       {loading && (
-        <div className="flex items-center gap-2 text-info-foreground/70 text-sm py-4">
+        <div className="flex items-center gap-2 text-info-foreground/70 text-sm py-4 font-serif-s italic">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Building your step-by-step playbook…
+          building your step-by-step playbook…
         </div>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -482,14 +532,14 @@ const ResultCard = ({
     >
       <div className={`flex items-center gap-2 mb-4 ${iconColor}`}>
         {icon}
-        <h2 className="text-sm font-medium uppercase tracking-wider">{title}</h2>
+        <h2 className="font-ui text-sm font-medium uppercase tracking-wider">{title}</h2>
       </div>
       {children}
     </article>
   );
 };
 
-/* ---------------- 60 SECOND RESET ---------------- */
+/* ---------------- BREATHE WITH SAATHI ---------------- */
 const STEP_DURATIONS = { 1: 30, 2: 20, 3: 20 } as const;
 
 const ThreeMinuteReset = ({
@@ -514,7 +564,6 @@ const ThreeMinuteReset = ({
     return () => clearInterval(id);
   }, [step]);
 
-  // Breath cycle for step 1
   useEffect(() => {
     if (step !== 1) return;
     setBreathPhase("in");
@@ -536,44 +585,43 @@ const ThreeMinuteReset = ({
     <div className="bg-card rounded-3xl p-7 md:p-9 border border-border shadow-[var(--shadow-card)] mt-8">
       <div className="flex items-center gap-2 mb-2 text-primary">
         <Sparkles className="h-5 w-5" />
-        <h2 className="text-sm font-medium uppercase tracking-wider">Your 60 Second Reset</h2>
+        <h2 className="font-ui text-sm font-medium uppercase tracking-wider">breathe with saathi</h2>
       </div>
 
       {step === 0 && (
         <>
-          <p className="text-foreground/80 mb-6">
-            Three short steps. 70 seconds total. Just follow along.
+          <p className="text-foreground/75 mb-6 font-serif-s italic text-lg">
+            three short steps. 70 seconds total. just follow along.
           </p>
           <Button
             onClick={() => setStep(1)}
-            className="w-full h-14 text-base font-medium rounded-2xl"
+            className="w-full h-14 text-base font-medium rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            Start
+            start
           </Button>
         </>
       )}
 
       {step >= 1 && (
         <div className="text-center py-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-6">
-            Step {step} of 3 · {secondsLeft}s
+          <p className="font-ui text-xs uppercase tracking-wider text-foreground/55 mb-6">
+            step {step} of 3 · {secondsLeft}s
           </p>
 
           {step === 1 && (
             <div className="flex flex-col items-center gap-6 py-4">
               <div
-                className="rounded-full bg-primary/15 border-2 border-primary/30 flex items-center justify-center"
+                className="rounded-full flex items-center justify-center"
                 style={{
                   width: breathPhase === "in" ? 220 : 120,
                   height: breathPhase === "in" ? 220 : 120,
+                  backgroundColor: "hsl(19 56% 59% / 0.18)",
+                  border: "2px solid hsl(19 56% 59% / 0.45)",
                   transition: "all 4s cubic-bezier(0.4, 0, 0.2, 1)",
                 }}
               >
-                <span
-                  className="text-lg font-medium text-primary"
-                  style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-                >
-                  {breathPhase === "in" ? "Breathe in" : "Breathe out"}
+                <span className="font-serif-s italic text-lg text-primary">
+                  {breathPhase === "in" ? "with saathi" : "let it go"}
                 </span>
               </div>
             </div>
@@ -581,11 +629,8 @@ const ThreeMinuteReset = ({
 
           {step === 2 && (
             <div className="bg-warm border border-warm rounded-2xl p-7 my-4">
-              <p className="text-xs uppercase tracking-wider text-warm-accent mb-3">Sit with this</p>
-              <p
-                className="text-xl md:text-2xl leading-relaxed text-warm-foreground"
-                style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-              >
+              <p className="font-ui text-xs uppercase tracking-wider text-warm-accent mb-3">sit with this</p>
+              <p className="font-serif-s italic text-xl md:text-2xl leading-relaxed text-warm-foreground">
                 {groundingQuestion}
               </p>
             </div>
@@ -593,13 +638,10 @@ const ThreeMinuteReset = ({
 
           {step === 3 && (
             <div className="bg-action border border-action rounded-2xl p-7 my-4">
-              <p className="text-xs uppercase tracking-wider text-action-foreground mb-3">
-                Your intention
+              <p className="font-ui text-xs uppercase tracking-wider text-action-foreground mb-3">
+                your intention
               </p>
-              <p
-                className="text-xl md:text-2xl leading-relaxed text-action-foreground"
-                style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-              >
+              <p className="font-serif-s italic text-xl md:text-2xl leading-relaxed text-action-foreground">
                 {intention}
               </p>
             </div>
@@ -608,13 +650,13 @@ const ThreeMinuteReset = ({
           <Button
             onClick={next}
             disabled={secondsLeft > 0}
-            className="w-full h-14 text-base font-medium rounded-2xl mt-6"
+            className="w-full h-14 text-base font-medium rounded-2xl mt-6 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {secondsLeft > 0
-              ? `Wait ${secondsLeft}s`
+              ? `wait ${secondsLeft}s`
               : step === 3
-              ? "See your shift"
-              : "Next"}
+              ? "see your shift"
+              : "next"}
           </Button>
         </div>
       )}
@@ -622,7 +664,7 @@ const ThreeMinuteReset = ({
   );
 };
 
-/* ---------------- SCREEN 5 ---------------- */
+/* ---------------- SHIFT ---------------- */
 const ShiftScreen = ({
   startLoad,
   endLoad,
@@ -642,17 +684,14 @@ const ShiftScreen = ({
   return (
     <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="bg-card rounded-3xl p-8 md:p-10 border border-border shadow-[var(--shadow-card)]">
-        <h2
-          className="text-2xl md:text-3xl mb-2 text-foreground"
-          style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-        >
-          You started at {startLoad}.
+        <h2 className="font-serif-s text-2xl md:text-3xl mb-2 text-foreground italic">
+          saathi has been with you through this.
         </h2>
-        <p className="text-muted-foreground mb-8">Where are you now?</p>
+        <p className="text-foreground/65 mb-8 font-serif-s italic">where are you now?</p>
 
         <div className="flex items-baseline justify-between mb-3">
-          <span className="text-sm text-foreground/70">Now</span>
-          <span className="text-3xl font-medium text-primary">{endLoad}</span>
+          <span className="font-ui text-xs uppercase tracking-wider text-foreground/65">now</span>
+          <span className="font-serif-s text-3xl text-primary">{endLoad}</span>
         </div>
         <Slider
           value={[endLoad]}
@@ -662,26 +701,23 @@ const ShiftScreen = ({
           step={1}
           disabled={submitted}
         />
-        <div className="flex justify-between text-xs text-muted-foreground mt-2">
-          <span>1 · light</span>
-          <span>10 · overflowing</span>
+        <div className="flex justify-between font-ui text-xs text-foreground/55 mt-2">
+          <span>still heavy</span>
+          <span>a little lighter</span>
         </div>
 
         {!submitted ? (
-          <Button onClick={onSubmit} className="w-full h-14 text-base rounded-2xl mt-8">
-            Submit
+          <Button onClick={onSubmit} className="w-full h-14 text-base rounded-2xl mt-8 bg-primary text-primary-foreground hover:bg-primary/90">
+            tell saathi where you are now
           </Button>
         ) : (
           <div className="mt-8 bg-warm border border-warm rounded-2xl p-6 text-center">
-            <p
-              className="text-xl md:text-2xl text-warm-foreground leading-relaxed"
-              style={{ fontFamily: "'Fraunces', Georgia, serif" }}
-            >
+            <p className="font-serif-s italic text-xl md:text-2xl text-warm-foreground leading-relaxed">
               {diff > 0
-                ? `You moved from ${startLoad} to ${endLoad}. That shift is real. You did that.`
+                ? `you moved from ${startLoad} to ${endLoad}. that shift happened because you stayed. saathi is proud of you.`
                 : diff === 0
-                ? `You stayed at ${endLoad} — and that's okay. You showed up. That counts.`
-                : `Some days the load grows before it lifts. You did the brave thing by looking at it.`}
+                ? `you stayed at ${endLoad} — and that's okay. you showed up. saathi is proud of you.`
+                : `some days the load grows before it lifts. you did the brave thing by looking at it. saathi is proud of you.`}
             </p>
           </div>
         )}
@@ -689,43 +725,69 @@ const ShiftScreen = ({
 
       {submitted && (
         <>
-          <div className="text-center px-4">
-            <p className="text-sm text-muted-foreground/80 leading-relaxed">
-              Without UnloadAI — 2 hours of spiraling.
-              <br />
-              With UnloadAI — 5 minutes to clarity.
-            </p>
-          </div>
-
-         <Button
+          <Button
             onClick={onReset}
             variant="outline"
             className="w-full h-14 text-base font-medium rounded-2xl"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
-            New Reset
+            new reset with saathi
           </Button>
-
-          <Button
-            onClick={() => {
-              navigator.clipboard.writeText(
-                "I just used UnloadAI to clear my mental overload in 5 minutes. If you are carrying too much right now — try it: " + window.location.href + " Built for every human under pressure."
-              );
-              toast("Copied! Paste it anywhere to share.");
-            }}
-            variant="outline"
-            className="w-full h-14 text-base font-medium rounded-2xl border-primary/30 text-primary"
-          >
-            Share Your Reset
-          </Button>
-
-          <p className="text-center text-xs text-muted-foreground/70 leading-relaxed pt-4">
-            UnloadAI — turning 2 hours of mental spiral into 5 minutes of clarity. Built for every human carrying too much.
-          </p>
         </>
       )}
     </section>
   );
 };
+
+/* ---------------- CRISIS OVERLAY ---------------- */
+const HELPLINES = [
+  { name: "iCall India", number: "9152987821" },
+  { name: "Vandrevala Foundation", number: "1860-2662-345" },
+  { name: "iMind", number: "9152987821" },
+];
+
+const CrisisOverlay = ({ onClose }: { onClose: () => void }) => (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center p-6 overflow-y-auto animate-in fade-in duration-500"
+    style={{ backgroundColor: "hsl(19 56% 35% / 0.97)", backdropFilter: "blur(10px)" }}
+  >
+    <div className="max-w-xl w-full text-center py-8">
+      <div className="flex justify-center mb-8">
+        <div className="relative h-20 w-20">
+          <div className="absolute inset-0 saathi-orb saathi-breathing" />
+        </div>
+      </div>
+      <p className="font-serif-s italic text-warm-foreground text-2xl md:text-3xl leading-snug mb-10">
+        saathi hears you. what you are feeling right now is real. and it is temporary. please stay with saathi for just five more minutes.
+      </p>
+
+      <div className="space-y-3 mb-8">
+        {HELPLINES.map((h) => (
+          <a
+            key={h.name}
+            href={`tel:${h.number.replace(/[^0-9]/g, "")}`}
+            className="flex items-center justify-between gap-4 bg-card/95 hover:bg-card rounded-2xl p-5 text-left transition-colors border border-warm-border"
+          >
+            <div>
+              <p className="font-serif-s text-lg text-foreground">{h.name}</p>
+              <p className="font-ui text-sm text-foreground/70">{h.number}</p>
+            </div>
+            <span className="flex items-center gap-2 bg-primary text-primary-foreground rounded-full px-4 py-2 font-ui text-sm">
+              <Phone className="h-4 w-4" />
+              call
+            </span>
+          </a>
+        ))}
+      </div>
+
+      <button
+        onClick={onClose}
+        className="font-serif-s italic text-warm-foreground/80 hover:text-warm-foreground text-base underline-offset-4 hover:underline"
+      >
+        i'm here — let me stay with saathi
+      </button>
+    </div>
+  </div>
+);
 
 export default Index;
